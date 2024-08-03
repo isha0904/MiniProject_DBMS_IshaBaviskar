@@ -1,0 +1,254 @@
+*********************INSERT QUERIES ******************************
+FOR DONOR - 
+INSERT INTO donor(d_name, d_bloodgroup, d_age, d_city, d_state, d_phno) VALUES ("Chitra Patil", "A-", 26, "Mumbai", "Maharashtra", 9852336542);
+
+FOR RECEIVER - 
+ INSERT INTO receiver( r_name, r_age, r_bloodgroup, r_street, r_city, r_state, r_phno, quantity, priority) VALUES ("Ima Shah", 45, 'A-', 'Karve Lane', 'Pune', 'Maharashtra', '6655884499', 350, 'Not Urgent');
+
+FOR BloodBank - 
+INSERT INTO bloodbankdetails (BankName, StreetLoc, CityLoc,StateLoc, Contact) VALUES ('Mangeshkar Hospital', 'Kothrud', 'Pune', 'Maharashtra', '9595626222');
+
+FOR Donation Drive
+INSERT INTO blooddonationdrive (Bank_Id, drive_city, drive_state, DateOfCamp, drive_location) VALUES (1007, 'Nashik', 'Maharashtra', '2024-04-28', 'City Centre Mall');
+
+***** Receiver/Donor will see these details of the bloodbank*****
+Query : 
+Select BankName, StreetLoc, CityLoc, Contact from bloodbankdetails;
+
+Result:
++--------------------------------+------------------+------------+------------+
+| BankName                       | StreetLoc        | CityLoc    | Contact    |
++--------------------------------+------------------+------------+------------+
+| Jankalyan Blood Bank           | Saras Baug       | Pune       | 2024449575 |
+| Aditya Birla Memorial Hospital | Pimpri Chinchwad | Pune       | 7947412232 |
+| Om Blood Bank                  | Mangalwar Peth   | Pune       | 8755423694 |
+| Arpan Blood Bank               | L.B.S Marg       | Bhandup    | 2225951043 |
+| BSES M.G.Hospital Blood Bank   | S.V.Road         | Andheri(W) | 2262835571 |
+| ESIC Hospital Blood Bank       | Central Road     | Andheri(E) | 2228321610 |
+| INS Asvini Blood Bank          | Colaba           | Mumbai     | 2221437652 |
+| Samta Blood Bank               | Indira Nagar     | Nashik     | 8445622361 |
+| Government Medical Hospital    | Hanuman Nagar    | Nagpur     | 8239900120 |
+| Dr Hedgewar Blood Bank         | Shivaji Nagar    | Nagpur     | 9510620302 |
++--------------------------------+------------------+------------+------------+
+10 rows in set (0.00 sec)
+
+
+***** Donor will see these details of Donation Drives *****
+
+Query: 
+SELECT BankName, location, drive_city, DateOfCamp
+    -> FROM blooddonationdrive AS d
+    -> JOIN bloodbankdetails AS bb ON d.Bank_Id = bb.BankId;
+
+Result: 
++--------------------------------+----------------+------------+------------+
+| BankName                       | drive_location | drive_city | DateOfCamp |
++--------------------------------+----------------+------------+------------+
+| Jankalyan Blood Bank           | Shivaji Nagar  | Pune       | 2022-05-10 |
+| Jankalyan Blood Bank           | Saras Baug     | Pune       | 2022-05-12 |
+| Aditya Birla Memorial Hospital | Mangalwar Peth | Pune       | 2022-05-12 |
+| Arpan Blood Bank               | L.B.S Marg     | Bhandup    | 2022-05-15 |
+| ESIC Hospital Blood Bank       | Central Road   | Andheri(E) | 2022-05-17 |
+| BSES M.G.Hospital Blood Bank   | S.V.Road       | Andheri(W) | 2022-05-17 |
+| Government Medical Hospital    | Hanuman Nagar  | Nagpur     | 2022-05-20 |
++--------------------------------+----------------+------------+------------+
+7 rows in set (0.00 sec)
+
+
+------Nearest BB for Receiver-------
+Query : 
+SELECT 
+    b.BankName, 
+    b.StreetLoc, 
+    b.CityLoc, 
+    b.StateLoc, 
+    b.Contact, 
+    s.Apos, 
+    s.Aneg, 
+    s.Bpos, 
+    s.Bneg, 
+    s.ABpos, 
+    s.ABneg, 
+    s.Opos, 
+    s.Oneg
+FROM 
+    bloodbankdetails AS b
+JOIN 
+    bloodbankstock AS s ON b.BankID = s.BankID
+WHERE 
+    b.CityLoc = 'Pune';
+
+
+******************* TO UPDATE THE STOCK WHEN DONATED ************************
+Query : 
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `UpdateDonatedStock`(IN bank_id INT, IN blood_group varchar(45), IN units INT)
+BEGIN
+    DECLARE donorStock CURSOR FOR
+		SELECT * FROM bloodbankstock WHERE BankID = bank_id;
+		UPDATE bloodbankstock
+        	SET 
+		Apos = CASE WHEN blood_group = 'Apos' THEN Apos + units ELSE Apos END,
+        	Aneg = CASE WHEN blood_group = 'Aneg' THEN Aneg + units ELSE Aneg END,
+        	Bpos = CASE WHEN blood_group = 'Bpos' THEN Bpos + units ELSE Bpos END,
+        	Bneg = CASE WHEN blood_group = 'Bneg' THEN Bneg + units ELSE Bneg END,
+        	ABpos = CASE WHEN blood_group = 'ABpos' THEN ABpos + units ELSE ABpos END,
+        	ABneg = CASE WHEN blood_group = 'ABneg' THEN ABneg + units ELSE ABneg END,
+        	Opos = CASE WHEN blood_group = 'Opos' THEN Opos + units ELSE Opos END,
+        	Oneg = CASE WHEN blood_group = 'Oneg' THEN Oneg + units ELSE Oneg END
+		WHERE BankID = bank_id;
+        SELECT * FROM bloodbankstock WHERE BankID = bank_id;
+END
+
+mysql> call UpdateDonatedStock(1007, 'ABneg', 2);
++--------+------+------+------+------+-------+-------+------+------+
+| BankID | Apos | Aneg | Bpos | Bneg | ABpos | ABneg | Opos | Oneg |
++--------+------+------+------+------+-------+-------+------+------+
+|   1007 |   25 |   12 |   12 |   13 |    10 |     9 |   16 |   15 |
++--------+------+------+------+------+-------+-------+------+------+
+1 row in set (0.01 sec)
+
+Query OK, 0 rows affected (0.01 sec)
+
+*****************************TO UPDATE THE STOCK WHEN RECEIVED********************
+Query : 
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `UpdateAfterReceiver`(IN bank_id INT, IN blood_group varchar(45), IN units INT)
+BEGIN
+    DECLARE donorStock CURSOR FOR
+		SELECT * FROM bloodbankstock WHERE BankID = bank_id;
+		UPDATE bloodbankstock
+        SET 
+		Apos = CASE WHEN blood_group = 'Apos' THEN Apos - units ELSE Apos END,
+        Aneg = CASE WHEN blood_group = 'Aneg' THEN Aneg - units ELSE Aneg END,
+        Bpos = CASE WHEN blood_group = 'Bpos' THEN Bpos - units ELSE Bpos END,
+        Bneg = CASE WHEN blood_group = 'Bneg' THEN Bneg - units ELSE Bneg END,
+        ABpos = CASE WHEN blood_group = 'ABpos' THEN ABpos - units ELSE ABpos END,
+        ABneg = CASE WHEN blood_group = 'ABneg' THEN ABneg - units ELSE ABneg END,
+        Opos = CASE WHEN blood_group = 'Opos' THEN Opos - units ELSE Opos END,
+        Oneg = CASE WHEN blood_group = 'Oneg' THEN Oneg - units ELSE Oneg END
+		WHERE BankID = bank_id;
+        
+END
+
+call blooddonationsystem.UpdateAfterReceiver(1003, 'Aneg', 3);
+
+
+
+*************************** RECEIVER - BANK *************************
+Query- 
+VIEW - 
+
+CREATE 
+    ALGORITHM = UNDEFINED 
+    DEFINER = `root`@`localhost` 
+    SQL SECURITY DEFINER
+VIEW `blooddonationsystem`.`bloodreq` AS
+    SELECT 
+        `blooddonationsystem`.`bankreceiver`.`Bank_id` AS `BankID`,
+        `blooddonationsystem`.`receiver`.`r_name` AS `r_name`,
+        `blooddonationsystem`.`receiver`.`r_bloodgroup` AS `r_bloodgroup`,
+        `blooddonationsystem`.`receiver`.`r_phno` AS `r_phno`,
+        `blooddonationsystem`.`receiver`.`quantity` AS `quantity`,
+        `blooddonationsystem`.`receiver`.`priority` AS `priority`
+    FROM
+        ((`blooddonationsystem`.`receiver`
+        JOIN `blooddonationsystem`.`bankreceiver` ON ((`blooddonationsystem`.`receiver`.`r_id` = `blooddonationsystem`.`bankreceiver`.`Rec_id`)))
+        JOIN `blooddonationsystem`.`bloodbankdetails` ON ((`blooddonationsystem`.`bankreceiver`.`Bank_id` = `blooddonationsystem`.`bloodbankdetails`.`BankID`)))
+
+CALLING QUERY - 
+
+SELECT *
+    FROM bloodreq
+    WHERE BankId = 1003;
+//bank id input.
+
+
+
+**********************SEE NEAREST BLOOD BANK AND BLOOD AVAILABILITY FOR RECEIVER***********************
+Procedure : 
+CREATE DEFINER=`root`@`localhost` PROCEDURE `bybloodgroup_near`(IN blood_group VARCHAR(10), IN rec_city VARCHAR(45))
+BEGIN
+    DECLARE done BOOLEAN DEFAULT FALSE;
+    DECLARE bank_name VARCHAR(45);
+
+    DECLARE cur_blood_banks CURSOR FOR
+        SELECT bd.BankName
+        FROM bloodbankstock bs
+        INNER JOIN bloodbankdetails bd ON bs.BankID = bd.BankID
+        WHERE bd.CityLoc = rec_city AND
+            CASE blood_group
+                WHEN 'Apos' THEN bs.Apos > 0
+                WHEN 'Aneg' THEN bs.Aneg > 0
+                WHEN 'Bpos' THEN bs.Bpos > 0
+                WHEN 'Bneg' THEN bs.Bneg > 0
+                WHEN 'ABpos' THEN bs.ABpos > 0
+                WHEN 'ABneg' THEN bs.ABneg > 0
+                WHEN 'Opos' THEN bs.Opos > 0
+                WHEN 'Oneg' THEN bs.Oneg > 0
+            END;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN cur_blood_banks;
+
+    read_loop: LOOP
+        FETCH cur_blood_banks INTO bank_name;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        SELECT CONCAT('Blood bank in ', rec_city, ' with ', blood_group, ' availability: ', bank_name) AS Blood_Bank_Info;
+    END LOOP;
+
+    CLOSE cur_blood_banks;
+END
+
+Query to be run : 
+call blooddonationsystem.bybloodgroup_near('Aneg', 'Pune');
+
+
+************TRIGGER************
+#triggers for removal of donors and receivers after completion 
+
+delete from receiver where receiver_id=2;
+select * from old_receivers;
+
+CREATE DEFINER=`root`@`localhost` TRIGGER `receiver_AFTER_DELETE` AFTER DELETE ON `receiver` FOR EACH ROW BEGIN
+	insert into old_receivers(receiver_id,receiver_name,receiver_age,blood_group,receiver_DOB,StreetLoc,City,State,PhoneNo,receiver_quantity,receiver_priority) 
+    values(old.receiver_id,old.receiver_name,old.receiver_age,old.blood_group,old.receiver_DOB,old.StreetLoc,old.City,old.State,old.PhoneNo,old.receiver_quantity,old.receiver_priority);
+END
+
+Result: 
+mysql> delete from receiver where r_id=3;select * from oldreceiver;
+Query OK, 1 row affected (0.01 sec)
+
++------+-------------+--------------+----------+--------+-------------+------------+----------+----------+-------+
+| r_id | r_name      | r_bloodgroup | r_street | r_city | r_state     | r_phno     | quantity | priority | r_age |
++------+-------------+--------------+----------+--------+-------------+------------+----------+----------+-------+
+|    2 | Rahul Gupta | A+           | Colaba   | Pune   | Maharashtra | 9871230092 |        2 | Urgent   |    36 |
+|    3 | Deepa Jain  | O-           | Bandra   | Pune   | Maharashtra | 9985632147 |        1 | Urgent   |    54 |
++------+-------------+--------------+----------+--------+-------------+------------+----------+----------+-------+
+2 rows in set (0.00 sec)
+
+mysql>
+
+delete from donor where donor_id=1;
+select * from old_donors;
+
+CREATE DEFINER=`root`@`localhost` TRIGGER `donor_AFTER_DELETE` AFTER DELETE ON `donor` FOR EACH ROW BEGIN
+	INSERT INTO old_donors (donor_id, donor_name, donor_age, donor_bloodGroup, street_loc, city, state, PhoneNo, d_quantity)
+    VALUES (OLD.donor_id, OLD.donor_name, OLD.donor_age, OLD.donor_bloodGroup, OLD.street_loc, OLD.city, OLD.state, OLD.PhoneNo, OLD.d_quantity);
+END
+
+mysql> delete from donor where d_id=2;select * from olddonor;
+Query OK, 1 row affected (0.01 sec)
+
++------+-------------+--------------+-------+--------+-------------+------------+
+| d_id | d_name      | d_bloodgroup | d_age | d_city | d_state     | d_phno     |
++------+-------------+--------------+-------+--------+-------------+------------+
+|    1 | Anil Kumar  | A+           |    24 | Mumbai | Maharashtra | 9875632142 |
+|    2 | Priya Singh | O-           |    37 | Pune   | Maharashtra | 8654712563 |
++------+-------------+--------------+-------+--------+-------------+------------+
+2 rows in set (0.00 sec)
+
+mysql>
